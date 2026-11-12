@@ -1,0 +1,26 @@
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Backend
+backend/target/
+*.class
+
+# IDE
+.idea/
+.vscode/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
