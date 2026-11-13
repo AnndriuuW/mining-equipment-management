@@ -1,6 +1,7 @@
 
 package com.mining.backend.service;
 
+import com.mining.backend.dto.EquipmentResponse;
 import com.mining.backend.entity.Equipment;
 import com.mining.backend.entity.EquipmentType;
 import com.mining.backend.repository.EquipmentRepository;
@@ -11,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+
+import java.time.LocalDateTime;
 
 @Service
 @Transactional
@@ -28,56 +31,81 @@ public class EquipmentService {
 
     // Listar todos los equipos
     @Transactional(readOnly = true)
-    public List<Equipment> findAll() {
-        return equipmentRepository.findAll();
+    public List<EquipmentResponse> findAll() {
+        return equipmentRepository.findAll()
+                .stream()
+                .map(equipment -> EquipmentResponse.from(
+                        equipment,
+                        requiresMaintenance(equipment)))
+                .toList();
     }
 
     // Buscar equipo por ID
     @Transactional(readOnly = true)
-    public Equipment findById(Long id) {
-        return equipmentRepository.findById(id)
+    public EquipmentResponse findById(Long id) {
+        Equipment equipment = equipmentRepository.findById(id)
                 .orElseThrow(() ->
                         new RuntimeException("Equipo no encontrado: " + id));
+
+        return EquipmentResponse.from(
+                equipment,
+                requiresMaintenance(equipment));
     }
 
     // Registrar un equipo
-    public Equipment create(Equipment equipment, Long typeId) {
+    public EquipmentResponse create(Equipment equipment, Long typeId) {
 
         EquipmentType type = equipmentTypeRepository.findById(typeId)
                 .orElseThrow(() ->
-                        new RuntimeException("Tipo de equipo no encontrado: " + typeId));
+                        new RuntimeException(
+                                "Tipo de equipo no encontrado: " + typeId));
 
         equipment.setType(type);
         equipment.setLastMaintenanceHourMeter(BigDecimal.ZERO);
 
-        return equipmentRepository.save(equipment);
+        Equipment saved = equipmentRepository.save(equipment);
+
+        return EquipmentResponse.from(
+                saved,
+                requiresMaintenance(saved));
     }
 
     // Actualizar un equipo
-    public Equipment update(Long id, Equipment updatedEquipment, Long typeId) {
+    public EquipmentResponse update(
+            Long id, Equipment updatedEquipment, Long typeId) {
 
-        Equipment existing = findById(id);
+        Equipment existing = equipmentRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Equipo no encontrado: " + id));
 
         EquipmentType type = equipmentTypeRepository.findById(typeId)
                 .orElseThrow(() ->
-                        new RuntimeException("Tipo de equipo no encontrado: " + typeId));
+                        new RuntimeException(
+                                "Tipo de equipo no encontrado: " + typeId));
 
         existing.setCode(updatedEquipment.getCode());
         existing.setType(type);
         existing.setHourMeter(updatedEquipment.getHourMeter());
+        existing.setUpdatedAt(LocalDateTime.now());
 
-        return equipmentRepository.save(existing);
+        Equipment saved = equipmentRepository.save(existing);
+
+        return EquipmentResponse.from(
+                saved,
+                requiresMaintenance(saved));
     }
 
     // Eliminar un equipo
     public void delete(Long id) {
-        Equipment equipment = findById(id);
+        Equipment equipment = equipmentRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Equipo no encontrado: " + id));
+
         equipmentRepository.delete(equipment);
     }
 
     // Verificar si requiere mantenimiento
-    @Transactional(readOnly = true)
-    public boolean requiresMaintenance(Equipment equipment) {
+    private boolean requiresMaintenance(Equipment equipment) {
 
         BigDecimal hoursSinceLastMaintenance =
                 equipment.getHourMeter()

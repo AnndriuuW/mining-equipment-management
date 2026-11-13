@@ -1,6 +1,7 @@
 
 package com.mining.backend.service;
 
+import com.mining.backend.dto.MaintenanceResponse;
 import com.mining.backend.entity.Equipment;
 import com.mining.backend.entity.MaintenanceHistory;
 import com.mining.backend.repository.EquipmentRepository;
@@ -26,7 +27,7 @@ public class MaintenanceService {
     }
 
     // Registrar un mantenimiento
-    public MaintenanceHistory registerMaintenance(
+    public MaintenanceResponse registerMaintenance(
             Long equipmentId, String description) {
 
         Equipment equipment = equipmentRepository.findById(equipmentId)
@@ -47,12 +48,12 @@ public class MaintenanceService {
         equipment.setLastMaintenanceHourMeter(equipment.getHourMeter());
         equipmentRepository.save(equipment);
 
-        return saved;
+        return MaintenanceResponse.from(saved);
     }
 
     // Consultar el historial de un equipo
     @Transactional(readOnly = true)
-    public List<MaintenanceHistory> findHistoryByEquipment(Long equipmentId) {
+    public List<MaintenanceResponse> findHistoryByEquipment(Long equipmentId) {
 
         if (!equipmentRepository.existsById(equipmentId)) {
             throw new RuntimeException(
@@ -60,6 +61,9 @@ public class MaintenanceService {
         }
 
         return maintenanceHistoryRepository
-                .findByEquipmentIdOrderByPerformedAtDesc(equipmentId);
+                .findByEquipmentIdOrderByPerformedAtDesc(equipmentId)
+                .stream()
+                .map(MaintenanceResponse::from)
+                .toList();
     }
 }

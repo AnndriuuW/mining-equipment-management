@@ -1,6 +1,7 @@
 
 package com.mining.backend.controller;
 
+import com.mining.backend.dto.EquipmentResponse;
 import com.mining.backend.entity.Equipment;
 import com.mining.backend.service.EquipmentService;
 
@@ -31,26 +32,27 @@ public class EquipmentController {
 
     // Listar todos los equipos
     @GetMapping
-    public ResponseEntity<List<Equipment>> findAll() {
+    public ResponseEntity<List<EquipmentResponse>> findAll() {
         return ResponseEntity.ok(equipmentService.findAll());
     }
 
     // Buscar equipo por ID
     @GetMapping("/{id}")
-    public ResponseEntity<Equipment> findById(@PathVariable Long id) {
+    public ResponseEntity<EquipmentResponse> findById(
+            @PathVariable Long id) {
         return ResponseEntity.ok(equipmentService.findById(id));
     }
 
     // Registrar un equipo
     @PostMapping
-    public ResponseEntity<Equipment> create(
+    public ResponseEntity<EquipmentResponse> create(
             @Valid @RequestBody EquipmentRequest request) {
 
         Equipment equipment = new Equipment();
         equipment.setCode(request.code());
         equipment.setHourMeter(request.hourMeter());
 
-        Equipment saved = equipmentService.create(
+        EquipmentResponse saved = equipmentService.create(
                 equipment, request.typeId());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
@@ -58,7 +60,7 @@ public class EquipmentController {
 
     // Actualizar un equipo
     @PutMapping("/{id}")
-    public ResponseEntity<Equipment> update(
+    public ResponseEntity<EquipmentResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody EquipmentRequest request) {
 
@@ -66,7 +68,7 @@ public class EquipmentController {
         equipment.setCode(request.code());
         equipment.setHourMeter(request.hourMeter());
 
-        Equipment updated = equipmentService.update(
+        EquipmentResponse updated = equipmentService.update(
                 id, equipment, request.typeId());
 
         return ResponseEntity.ok(updated);
@@ -79,7 +81,7 @@ public class EquipmentController {
         return ResponseEntity.noContent().build();
     }
 
-    // Datos que recibirá el backend desde el frontend
+    // Datos recibidos desde el frontend
     public record EquipmentRequest(
 
             @NotBlank(message = "El código es obligatorio")

@@ -1,7 +1,7 @@
 
 package com.mining.backend.controller;
 
-import com.mining.backend.entity.MaintenanceHistory;
+import com.mining.backend.dto.MaintenanceResponse;
 import com.mining.backend.service.MaintenanceService;
 
 import jakarta.validation.Valid;
@@ -25,11 +25,11 @@ public class MaintenanceController {
 
     // Registrar mantenimiento de un equipo
     @PostMapping("/equipment/{equipmentId}")
-    public ResponseEntity<MaintenanceHistory> registerMaintenance(
+    public ResponseEntity<MaintenanceResponse> registerMaintenance(
             @PathVariable Long equipmentId,
             @Valid @RequestBody MaintenanceRequest request) {
 
-        MaintenanceHistory maintenance =
+        MaintenanceResponse maintenance =
                 maintenanceService.registerMaintenance(
                         equipmentId,
                         request.description()
@@ -42,7 +42,7 @@ public class MaintenanceController {
 
     // Consultar historial de mantenimiento de un equipo
     @GetMapping("/equipment/{equipmentId}/history")
-    public ResponseEntity<List<MaintenanceHistory>> findHistory(
+    public ResponseEntity<List<MaintenanceResponse>> findHistory(
             @PathVariable Long equipmentId) {
 
         return ResponseEntity.ok(
