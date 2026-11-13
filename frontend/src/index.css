@@ -1,0 +1,111 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  font-family: 'Inter', sans-serif;
+  color: #263445;
+  background: #f3f4f5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Identidad visual */
+  --color-primary: #172b43;
+  --color-primary-light: #263b52;
+  --color-background: #f3f4f5;
+  --color-surface: #ffffff;
+  --color-border: #e1e5e9;
+
+  /* Texto */
+  --color-text: #263445;
+  --color-text-secondary: #758191;
+  --color-text-light: #9ba5b1;
+
+  /* Estados */
+  --color-success: #647f73;
+  --color-warning: #c28a3d;
+  --color-danger: #b65c55;
+
+  /* Dimensiones */
+  --sidebar-width: 250px;
+  --header-height: 72px;
+
+  /* Otros */
+  --radius: 6px;
+  --transition: 180ms ease;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--color-background);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: 'Inter', sans-serif;
+}
+
+button {
+  cursor: pointer;
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul {
+  list-style: none;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-text);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+::selection {
+  background: #dce3ea;
+  color: var(--color-primary);
+}
