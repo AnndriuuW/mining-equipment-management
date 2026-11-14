@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Service
 @Transactional
@@ -40,6 +42,7 @@ public class MaintenanceService {
         maintenance.setEquipment(equipment);
         maintenance.setHourMeter(equipment.getHourMeter());
         maintenance.setDescription(description);
+        maintenance.setPerformedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         MaintenanceHistory saved =
                 maintenanceHistoryRepository.save(maintenance);

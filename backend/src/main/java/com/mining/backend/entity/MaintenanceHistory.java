@@ -23,7 +23,7 @@ public class MaintenanceHistory {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "performed_at", insertable = false, updatable = false)
+    @Column(name = "performed_at", nullable = false)
     private LocalDateTime performedAt;
 
     public MaintenanceHistory() {
@@ -59,5 +59,9 @@ public class MaintenanceHistory {
 
     public LocalDateTime getPerformedAt() {
         return performedAt;
+    }
+
+    public void setPerformedAt(LocalDateTime performedAt) {
+        this.performedAt = performedAt;
     }
 }

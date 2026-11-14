@@ -43,7 +43,18 @@ async function request<T>(
   })
 
   if (!response.ok) {
-    const message = await response.text()
+    const body = await response.text()
+    let message = body
+    try {
+      const error = JSON.parse(body) as {
+        detail?: string
+        message?: string
+        title?: string
+      }
+      message = error.detail || error.message || error.title || body
+    } catch {
+      // Keep plain-text errors as they are.
+    }
     throw new Error(message || `Error HTTP: ${response.status}`)
   }
 

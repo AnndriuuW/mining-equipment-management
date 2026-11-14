@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -81,6 +82,14 @@ public class EquipmentController {
         return ResponseEntity.noContent().build();
     }
 
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleStatusException(
+            ResponseStatusException exception) {
+        return ResponseEntity
+                .status(exception.getStatusCode())
+                .body(new ErrorResponse(exception.getReason()));
+    }
+
     // Datos recibidos desde el frontend
     public record EquipmentRequest(
 
@@ -96,4 +105,6 @@ public class EquipmentController {
             Long typeId
 
     ) {}
+
+    public record ErrorResponse(String message) {}
 }

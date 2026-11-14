@@ -8,5 +8,7 @@ import java.util.List;
 
 public interface MaintenanceHistoryRepository extends JpaRepository<MaintenanceHistory, Long> {
 
+    boolean existsByEquipmentId(Long equipmentId);
+
     List<MaintenanceHistory> findByEquipmentIdOrderByPerformedAtDesc(Long equipmentId);
 }

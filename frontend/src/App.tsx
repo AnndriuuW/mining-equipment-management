@@ -12,15 +12,23 @@ import {
   ChevronDown,
   HardHat,
   Activity,
+  Trash2,
 } from 'lucide-react'
 
 import {
   equipmentService,
   type Equipment,
   type EquipmentType,
+  type Maintenance,
 } from './services/equipmentService'
 
 import './App.css'
+
+function formatMaintenanceDate(value: string) {
+  return new Date(value).toLocaleString('es-PE', {
+    timeZone: 'America/Lima',
+  })
+}
 
 function App() {
   const [equipos, setEquipos] = useState<Equipment[]>([])
@@ -31,6 +39,18 @@ function App() {
   const [tipos, setTipos] = useState<EquipmentType[]>([])
   const [modalAbierto, setModalAbierto] = useState(false)
   const [equipoEditando, setEquipoEditando] = useState<Equipment | null>(null)
+  const [equipoEliminando, setEquipoEliminando] = useState<Equipment | null>(null)
+  const [eliminando, setEliminando] = useState(false)
+  const [errorEliminacion, setErrorEliminacion] = useState('')
+  const [equipoMantenimiento, setEquipoMantenimiento] = useState<Equipment | null>(null)
+  const [descripcionMantenimiento, setDescripcionMantenimiento] = useState('')
+  const [guardandoMantenimiento, setGuardandoMantenimiento] = useState(false)
+  const [errorMantenimiento, setErrorMantenimiento] = useState('')
+  const [exitoMantenimiento, setExitoMantenimiento] = useState('')
+  const [equipoHistorial, setEquipoHistorial] = useState<Equipment | null>(null)
+  const [historialMantenimientos, setHistorialMantenimientos] = useState<Maintenance[]>([])
+  const [cargandoHistorial, setCargandoHistorial] = useState(false)
+  const [errorHistorial, setErrorHistorial] = useState('')
 
   const [formulario, setFormulario] = useState({
     code: '',
@@ -239,6 +259,12 @@ function App() {
             </article>
           </section>
 
+          {exitoMantenimiento && (
+            <div className="success-message" role="status" aria-live="polite">
+              {exitoMantenimiento}
+            </div>
+          )}
+
           {/* TABLA DE EQUIPOS */}
           <section className="content-section" id="equipos">
             <div className="section-header">
@@ -285,8 +311,17 @@ function App() {
               </div>
             </div>
 
-            <div className="table-container">
-              <table className="data-table">
+            <div className="table-container equipment-table-container">
+              <table className="data-table equipment-table">
+                <colgroup>
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '34%' }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Código</th>
@@ -302,7 +337,7 @@ function App() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <div className="empty-state">
                           Cargando equipos...
                         </div>
@@ -310,7 +345,7 @@ function App() {
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <div className="empty-state">
                           Error al cargar los equipos: {error}
                         </div>
@@ -318,7 +353,7 @@ function App() {
                     </tr>
                   ) : equiposFiltrados.length === 0 ? (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <div className="empty-state">
                           <Activity
                             size={28}
@@ -370,24 +405,74 @@ function App() {
                           </span>
                         </td>
                         <td>
-                          <button
-                            className="btn btn-secondary"
-                            type="button"
-                            onClick={() => {
-                              setEquipoEditando(equipo)
-                              setFormulario({
-                                code: equipo.code,
-                                typeId: String(
-                                  tipos.find((tipo) => tipo.code === equipo.typeCode)?.id ?? '',
-                                ),
-                                hourMeter: String(equipo.hourMeter),
-                              })
-                              setErrorFormulario('')
-                              setModalAbierto(true)
-                            }}
-                          >
-                            Editar
-                          </button>
+                          <div className="equipment-actions">
+                            <button
+                              className="btn btn-secondary"
+                              type="button"
+                              onClick={() => {
+                                setEquipoEditando(equipo)
+                                setFormulario({
+                                  code: equipo.code,
+                                  typeId: String(
+                                    tipos.find((tipo) => tipo.code === equipo.typeCode)?.id ?? '',
+                                  ),
+                                  hourMeter: String(equipo.hourMeter),
+                                })
+                                setErrorFormulario('')
+                                setModalAbierto(true)
+                              }}
+                            >
+                              Editar
+                            </button>
+                            <button
+                              className="btn btn-danger"
+                              type="button"
+                              onClick={() => {
+                                setEquipoEliminando(equipo)
+                                setErrorEliminacion('')
+                              }}
+                            >
+                              <Trash2 size={14} />
+                              Eliminar
+                            </button>
+                            <button
+                              className="btn btn-secondary"
+                              type="button"
+                              onClick={() => {
+                                setEquipoMantenimiento(equipo)
+                                setDescripcionMantenimiento('')
+                                setErrorMantenimiento('')
+                                setExitoMantenimiento('')
+                              }}
+                            >
+                              <Wrench size={14} />
+                              Mantenimiento
+                            </button>
+                            <button
+                              className="btn btn-secondary"
+                              type="button"
+                              onClick={async () => {
+                                setEquipoHistorial(equipo)
+                                setCargandoHistorial(true)
+                                setErrorHistorial('')
+                                try {
+                                  const historial = await equipmentService.getMaintenanceHistory(equipo.id)
+                                  setHistorialMantenimientos(historial)
+                                } catch (err) {
+                                  setErrorHistorial(
+                                    err instanceof Error
+                                      ? err.message
+                                      : 'No se pudo cargar el historial.',
+                                  )
+                                } finally {
+                                  setCargandoHistorial(false)
+                                }
+                              }}
+                            >
+                              <ClipboardList size={14} />
+                              Historial
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -546,6 +631,211 @@ function App() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {equipoEliminando && (
+          <div className="modal-overlay">
+            <div className="modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+              <div className="modal-header">
+                <h2 id="delete-modal-title">Confirmar eliminación</h2>
+              </div>
+
+              <div className="modal-body">
+                <p>
+                  ¿Seguro que deseas eliminar el equipo{' '}
+                  <strong>{equipoEliminando.code}</strong>? Esta acción no se puede
+                  deshacer.
+                </p>
+                {errorEliminacion && (
+                  <p style={{ color: '#b65c55', marginTop: 16 }}>
+                    {errorEliminacion}
+                  </p>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  disabled={eliminando}
+                  onClick={() => {
+                    setEquipoEliminando(null)
+                    setErrorEliminacion('')
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="btn btn-danger"
+                  type="button"
+                  disabled={eliminando}
+                  onClick={async () => {
+                    setEliminando(true)
+                    setErrorEliminacion('')
+                    try {
+                      await equipmentService.delete(equipoEliminando.id)
+                      setEquipos((actuales) =>
+                        actuales.filter((equipo) => equipo.id !== equipoEliminando.id),
+                      )
+                      setEquipoEliminando(null)
+                    } catch (err) {
+                      setErrorEliminacion(
+                        err instanceof Error
+                          ? err.message
+                          : 'No se pudo eliminar el equipo.',
+                      )
+                    } finally {
+                      setEliminando(false)
+                    }
+                  }}
+                >
+                  {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {equipoMantenimiento && (
+          <div className="modal-overlay">
+            <div className="modal" role="dialog" aria-modal="true" aria-labelledby="maintenance-modal-title">
+              <div className="modal-header">
+                <h2 id="maintenance-modal-title">Registrar mantenimiento</h2>
+              </div>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  setGuardandoMantenimiento(true)
+                  setErrorMantenimiento('')
+                  try {
+                    const mantenimiento = await equipmentService.registerMaintenance(
+                      equipoMantenimiento.id,
+                      descripcionMantenimiento.trim(),
+                    )
+                    setEquipos((actuales) =>
+                      actuales.map((equipo) =>
+                        equipo.id === equipoMantenimiento.id
+                          ? {
+                              ...equipo,
+                              lastMaintenanceHourMeter: mantenimiento.hourMeter,
+                              requiresMaintenance: false,
+                            }
+                          : equipo,
+                      ),
+                    )
+                    setExitoMantenimiento(
+                      `Mantenimiento de ${equipoMantenimiento.code} registrado. Último horómetro: ${mantenimiento.hourMeter.toLocaleString('es-PE')} h.`,
+                    )
+                    setEquipoMantenimiento(null)
+                    setDescripcionMantenimiento('')
+                  } catch (err) {
+                    setErrorMantenimiento(
+                      err instanceof Error
+                        ? err.message
+                        : 'No se pudo registrar el mantenimiento.',
+                    )
+                  } finally {
+                    setGuardandoMantenimiento(false)
+                  }
+                }}
+              >
+                <div className="modal-body">
+                  <p>
+                    Equipo: <strong>{equipoMantenimiento.code}</strong>
+                  </p>
+                  <p style={{ marginTop: 8, marginBottom: 18 }}>
+                    Horómetro actual: <strong>{equipoMantenimiento.hourMeter.toLocaleString('es-PE')} h</strong>
+                    <br />
+                    Este valor se guardará automáticamente en el historial.
+                  </p>
+                  <div className="form-group">
+                    <label htmlFor="maintenance-description">Descripción</label>
+                    <textarea
+                      id="maintenance-description"
+                      className="form-control"
+                      rows={4}
+                      maxLength={1000}
+                      placeholder="Describe el mantenimiento realizado..."
+                      value={descripcionMantenimiento}
+                      onChange={(e) => setDescripcionMantenimiento(e.target.value)}
+                      required
+                    />
+                  </div>
+                  {errorMantenimiento && (
+                    <p style={{ color: '#b65c55', marginTop: 16 }}>
+                      {errorMantenimiento}
+                    </p>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    disabled={guardandoMantenimiento}
+                    onClick={() => setEquipoMantenimiento(null)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    type="submit"
+                    disabled={guardandoMantenimiento}
+                  >
+                    {guardandoMantenimiento ? 'Guardando...' : 'Registrar mantenimiento'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {equipoHistorial && (
+          <div className="modal-overlay">
+            <div className="modal" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
+              <div className="modal-header">
+                <h2 id="history-modal-title">Historial: {equipoHistorial.code}</h2>
+              </div>
+              <div className="modal-body">
+                {cargandoHistorial ? (
+                  <div className="empty-state">Cargando historial...</div>
+                ) : errorHistorial ? (
+                  <p style={{ color: '#b65c55' }}>{errorHistorial}</p>
+                ) : historialMantenimientos.length === 0 ? (
+                  <div className="empty-state">Este equipo aún no tiene mantenimientos registrados.</div>
+                ) : (
+                  <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Fecha</th>
+                          <th>Horómetro</th>
+                          <th>Descripción</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {historialMantenimientos.map((mantenimiento) => (
+                          <tr key={mantenimiento.id}>
+                            <td>{formatMaintenanceDate(mantenimiento.performedAt)}</td>
+                            <td>{mantenimiento.hourMeter.toLocaleString('es-PE')} h</td>
+                            <td>{mantenimiento.description || 'Sin descripción'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => setEquipoHistorial(null)}
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
           </div>
         )}

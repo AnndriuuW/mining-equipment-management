@@ -6,9 +6,12 @@ import com.mining.backend.entity.Equipment;
 import com.mining.backend.entity.EquipmentType;
 import com.mining.backend.repository.EquipmentRepository;
 import com.mining.backend.repository.EquipmentTypeRepository;
+import com.mining.backend.repository.MaintenanceHistoryRepository;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -21,12 +24,15 @@ public class EquipmentService {
 
     private final EquipmentRepository equipmentRepository;
     private final EquipmentTypeRepository equipmentTypeRepository;
+    private final MaintenanceHistoryRepository maintenanceHistoryRepository;
 
     public EquipmentService(
             EquipmentRepository equipmentRepository,
-            EquipmentTypeRepository equipmentTypeRepository) {
+            EquipmentTypeRepository equipmentTypeRepository,
+            MaintenanceHistoryRepository maintenanceHistoryRepository) {
         this.equipmentRepository = equipmentRepository;
         this.equipmentTypeRepository = equipmentTypeRepository;
+        this.maintenanceHistoryRepository = maintenanceHistoryRepository;
     }
 
     // Listar todos los equipos
@@ -100,6 +106,13 @@ public class EquipmentService {
         Equipment equipment = equipmentRepository.findById(id)
                 .orElseThrow(() ->
                         new RuntimeException("Equipo no encontrado: " + id));
+
+        if (maintenanceHistoryRepository.existsByEquipmentId(id)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "No se puede eliminar el equipo porque tiene mantenimientos registrados en el historial."
+            );
+        }
 
         equipmentRepository.delete(equipment);
     }
