@@ -17,6 +17,7 @@ import {
 import {
   equipmentService,
   type Equipment,
+  type EquipmentType,
 } from './services/equipmentService'
 
 import './App.css'
@@ -27,10 +28,28 @@ function App() {
   const [error, setError] = useState('')
   const [busqueda, setBusqueda] = useState('')
 
+  const [tipos, setTipos] = useState<EquipmentType[]>([])
+  const [modalAbierto, setModalAbierto] = useState(false)
+  const [equipoEditando, setEquipoEditando] = useState<Equipment | null>(null)
+
+  const [formulario, setFormulario] = useState({
+    code: '',
+    typeId: '',
+    hourMeter: '',
+  })
+
+  const [guardando, setGuardando] = useState(false)
+  const [errorFormulario, setErrorFormulario] = useState('')
+
   useEffect(() => {
-    equipmentService
-      .getAll()
-      .then(setEquipos)
+    Promise.all([
+      equipmentService.getAll(),
+      equipmentService.getTypes(),
+    ])
+      .then(([equiposData, tiposData]) => {
+        setEquipos(equiposData)
+        setTipos(tiposData)
+      })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
   }, [])
@@ -162,7 +181,14 @@ function App() {
               </p>
             </div>
 
-            <button className="btn btn-primary" type="button">
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={() => {
+                setErrorFormulario('')
+                setModalAbierto(true)
+              }}
+            >
               <Plus size={16} />
               Registrar equipo
             </button>
@@ -269,6 +295,7 @@ function App() {
                     <th>Último mantenimiento</th>
                     <th>Intervalo</th>
                     <th>Estado</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
 
@@ -342,6 +369,26 @@ function App() {
                               : 'Operativo'}
                           </span>
                         </td>
+                        <td>
+                          <button
+                            className="btn btn-secondary"
+                            type="button"
+                            onClick={() => {
+                              setEquipoEditando(equipo)
+                              setFormulario({
+                                code: equipo.code,
+                                typeId: String(
+                                  tipos.find((tipo) => tipo.code === equipo.typeCode)?.id ?? '',
+                                ),
+                                hourMeter: String(equipo.hourMeter),
+                              })
+                              setErrorFormulario('')
+                              setModalAbierto(true)
+                            }}
+                          >
+                            Editar
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -350,6 +397,158 @@ function App() {
             </div>
           </section>
         </div>
+
+        {/* MODAL REGISTRAR EQUIPO */}
+        {modalAbierto && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <div className="modal-header">
+                <h2>{equipoEditando ? 'Editar equipo' : 'Registrar nuevo equipo'}</h2>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  setGuardando(true)
+                  setErrorFormulario('')
+
+                  try {
+                    const datosEquipo = {
+                      code: formulario.code.trim().toUpperCase(),
+                      typeId: Number(formulario.typeId),
+                      hourMeter: Number(formulario.hourMeter),
+                    }
+
+                    if (equipoEditando) {
+                      await equipmentService.update(equipoEditando.id, datosEquipo)
+                    } else {
+                      await equipmentService.create(datosEquipo)
+                    }
+
+                    const equiposActualizados =
+                      await equipmentService.getAll()
+
+                    setEquipos(equiposActualizados)
+
+                    setFormulario({
+                      code: '',
+                      typeId: '',
+                      hourMeter: '',
+                    })
+
+                    setModalAbierto(false)
+                    setEquipoEditando(null)
+                  } catch (err) {
+                    setErrorFormulario(
+                      err instanceof Error
+                        ? err.message
+                        : 'No se pudo registrar el equipo.',
+                    )
+                  } finally {
+                    setGuardando(false)
+                  }
+                }}
+              >
+                <div className="modal-body">
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label htmlFor="code">Código del equipo</label>
+                      <input
+                        id="code"
+                        className="form-control"
+                        type="text"
+                        placeholder="Ej. TRUCK-002"
+                        value={formulario.code}
+                        onChange={(e) =>
+                          setFormulario({
+                            ...formulario,
+                            code: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="typeId">Tipo de equipo</label>
+                      <select
+                        id="typeId"
+                        className="form-control"
+                        value={formulario.typeId}
+                        onChange={(e) =>
+                          setFormulario({
+                            ...formulario,
+                            typeId: e.target.value,
+                          })
+                        }
+                        required
+                      >
+                        <option value="">Seleccionar tipo</option>
+
+                        {tipos.map((tipo) => (
+                          <option key={tipo.id} value={tipo.id}>
+                            {tipo.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="hourMeter">
+                        Horómetro inicial
+                      </label>
+                      <input
+                        id="hourMeter"
+                        className="form-control"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Ej. 500"
+                        value={formulario.hourMeter}
+                        onChange={(e) =>
+                          setFormulario({
+                            ...formulario,
+                            hourMeter: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {errorFormulario && (
+                    <p style={{ color: '#b65c55', marginTop: 16 }}>
+                      {errorFormulario}
+                    </p>
+                  )}
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    disabled={guardando}
+                    onClick={() => {
+                      setModalAbierto(false)
+                      setEquipoEditando(null)
+                      setErrorFormulario('')
+                    }}
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    className="btn btn-primary"
+                    type="submit"
+                    disabled={guardando}
+                  >
+                    {guardando ? 'Guardando...' : 'Guardar equipo'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )
