@@ -365,25 +365,32 @@ function App() {
           {vistaActiva === 'dashboard' && <>
           {/* ENCABEZADO */}
           <section className="page-header">
-            <div>
+          <div>
+            <div className="dashboard-title-row">
               <h1>Dashboard</h1>
-              <p>
-                Resumen general del estado de los equipos y mantenimientos.
-              </p>
+              <span className="system-status">
+                <span className="system-status-dot" aria-hidden="true" />
+                Sistema operativo
+              </span>
             </div>
 
-            <button
-              className="btn btn-primary"
-              type="button"
-              onClick={() => {
-                setErrorFormulario('')
-                setModalAbierto(true)
-              }}
-            >
-              <Plus size={16} />
-              Registrar equipo
-            </button>
-          </section>
+            <p>
+              Resumen general del estado de los equipos y mantenimientos.
+            </p>
+          </div>
+
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => {
+              setErrorFormulario('')
+              setModalAbierto(true)
+            }}
+          >
+            <Plus size={16} />
+            Registrar equipo
+          </button>
+        </section>
 
           {/* INDICADORES */}
           <section className="kpi-grid">

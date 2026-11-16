@@ -784,3 +784,35 @@
     flex: 1 1 auto;
   }
 }
+
+/* Indicador de estado del sistema en Dashboard */
+.dashboard-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.system-status {
+  min-height: 24px;
+  padding: 3px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d8e6de;
+  border-radius: 999px;
+  background: #edf2ef;
+  color: var(--color-success);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.system-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
