@@ -69,4 +69,9 @@ public class MaintenanceService {
                 .map(MaintenanceResponse::from)
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public long countMaintenanceRecords() {
+        return maintenanceHistoryRepository.count();
+    }
 }

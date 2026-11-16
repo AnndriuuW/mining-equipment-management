@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   LayoutDashboard,
   Truck,
@@ -31,6 +31,8 @@ function formatMaintenanceDate(value: string) {
 }
 
 function App() {
+  const [vistaActiva, setVistaActiva] = useState('dashboard')
+  const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false)
   const [equipos, setEquipos] = useState<Equipment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -47,10 +49,20 @@ function App() {
   const [guardandoMantenimiento, setGuardandoMantenimiento] = useState(false)
   const [errorMantenimiento, setErrorMantenimiento] = useState('')
   const [exitoMantenimiento, setExitoMantenimiento] = useState('')
+  const [confirmarMantenimiento, setConfirmarMantenimiento] = useState(false)
   const [equipoHistorial, setEquipoHistorial] = useState<Equipment | null>(null)
   const [historialMantenimientos, setHistorialMantenimientos] = useState<Maintenance[]>([])
   const [cargandoHistorial, setCargandoHistorial] = useState(false)
   const [errorHistorial, setErrorHistorial] = useState('')
+  const [historialGeneral, setHistorialGeneral] = useState<Maintenance[]>([])
+  const [cargandoHistorialGeneral, setCargandoHistorialGeneral] = useState(false)
+  const [errorHistorialGeneral, setErrorHistorialGeneral] = useState('')
+  const [filtroHistorial, setFiltroHistorial] = useState('')
+  const [totalMantenimientos, setTotalMantenimientos] = useState<number | null>(null)
+  const [cargandoTotalMantenimientos, setCargandoTotalMantenimientos] = useState(true)
+  const [errorTotalMantenimientos, setErrorTotalMantenimientos] = useState('')
+  const totalMantenimientosRequestId = useRef(0)
+  const registroMantenimientoEnCurso = useRef(false)
 
   const [formulario, setFormulario] = useState({
     code: '',
@@ -60,6 +72,35 @@ function App() {
 
   const [guardando, setGuardando] = useState(false)
   const [errorFormulario, setErrorFormulario] = useState('')
+
+  const actualizarTotalMantenimientos = useCallback(async () => {
+    const requestId = ++totalMantenimientosRequestId.current
+    setCargandoTotalMantenimientos(true)
+    setErrorTotalMantenimientos('')
+    try {
+      const total = await equipmentService.getMaintenanceCount()
+      if (requestId === totalMantenimientosRequestId.current) {
+        setTotalMantenimientos(total)
+      }
+    } catch (err) {
+      if (requestId === totalMantenimientosRequestId.current) {
+        setTotalMantenimientos(null)
+        setErrorTotalMantenimientos(
+          err instanceof Error
+            ? err.message
+            : 'No se pudo cargar el total de mantenimientos.',
+        )
+      }
+    } finally {
+      if (requestId === totalMantenimientosRequestId.current) {
+        setCargandoTotalMantenimientos(false)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    void actualizarTotalMantenimientos()
+  }, [actualizarTotalMantenimientos])
 
   useEffect(() => {
     Promise.all([
@@ -73,6 +114,41 @@ function App() {
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (vistaActiva !== 'historial' || loading) return
+
+    let vigente = true
+    setCargandoHistorialGeneral(true)
+    setErrorHistorialGeneral('')
+
+    Promise.all(
+      equipos.map((equipo) => equipmentService.getMaintenanceHistory(equipo.id)),
+    )
+      .then((historiales) => {
+        if (vigente) {
+          setHistorialGeneral(
+            historiales
+              .flat()
+              .sort(
+                (a, b) =>
+                  new Date(b.performedAt).getTime() -
+                  new Date(a.performedAt).getTime(),
+              ),
+          )
+        }
+      })
+      .catch((err: Error) => {
+        if (vigente) setErrorHistorialGeneral(err.message)
+      })
+      .finally(() => {
+        if (vigente) setCargandoHistorialGeneral(false)
+      })
+
+    return () => {
+      vigente = false
+    }
+  }, [vistaActiva, equipos, loading])
 
   // Indicadores del dashboard
   const totalEquipos = equipos.length
@@ -95,6 +171,19 @@ function App() {
     )
   })
 
+  const mantenimientosFiltrados = historialGeneral.filter(
+    (mantenimiento) =>
+      !filtroHistorial || String(mantenimiento.equipmentId) === filtroHistorial,
+  )
+
+  const titulosVistas: Record<string, string> = {
+    dashboard: 'Dashboard',
+    equipos: 'Equipos',
+    mantenimientos: 'Mantenimientos',
+    historial: 'Historial',
+    configuracion: 'Configuración',
+  }
+
   return (
     <div className="app">
       {/* SIDEBAR */}
@@ -108,30 +197,30 @@ function App() {
         </div>
 
         <nav className="sidebar-nav">
-          <a href="#dashboard" className="sidebar-link active">
+          <button type="button" title="Dashboard" aria-label="Dashboard" onClick={() => setVistaActiva('dashboard')} className={`sidebar-link ${vistaActiva === 'dashboard' ? 'active' : ''}`} aria-current={vistaActiva === 'dashboard' ? 'page' : undefined}>
             <LayoutDashboard size={18} />
             <span>Dashboard</span>
-          </a>
+          </button>
 
-          <a href="#equipos" className="sidebar-link">
+          <button type="button" title="Equipos" aria-label="Equipos" onClick={() => setVistaActiva('equipos')} className={`sidebar-link ${vistaActiva === 'equipos' ? 'active' : ''}`} aria-current={vistaActiva === 'equipos' ? 'page' : undefined}>
             <Truck size={18} />
             <span>Equipos</span>
-          </a>
+          </button>
 
-          <a href="#mantenimientos" className="sidebar-link">
+          <button type="button" title="Mantenimientos" aria-label="Mantenimientos" onClick={() => setVistaActiva('mantenimientos')} className={`sidebar-link ${vistaActiva === 'mantenimientos' ? 'active' : ''}`} aria-current={vistaActiva === 'mantenimientos' ? 'page' : undefined}>
             <Wrench size={18} />
             <span>Mantenimientos</span>
-          </a>
+          </button>
 
-          <a href="#historial" className="sidebar-link">
+          <button type="button" title="Historial" aria-label="Historial" onClick={() => setVistaActiva('historial')} className={`sidebar-link ${vistaActiva === 'historial' ? 'active' : ''}`} aria-current={vistaActiva === 'historial' ? 'page' : undefined}>
             <ClipboardList size={18} />
             <span>Historial</span>
-          </a>
+          </button>
 
-          <a href="#configuracion" className="sidebar-link">
+          <button type="button" title="Configuración" aria-label="Configuración" onClick={() => setVistaActiva('configuracion')} className={`sidebar-link ${vistaActiva === 'configuracion' ? 'active' : ''}`} aria-current={vistaActiva === 'configuracion' ? 'page' : undefined}>
             <Settings size={18} />
             <span>Configuración</span>
-          </a>
+          </button>
         </nav>
 
         <div className="sidebar-footer">
@@ -146,22 +235,103 @@ function App() {
         {/* TOPBAR */}
         <header className="topbar">
           <div>
-            <div className="topbar-title">Panel de control</div>
+            <div className="topbar-title">{titulosVistas[vistaActiva]}</div>
             <div className="topbar-subtitle">
               Gestión y monitoreo de equipos mineros
             </div>
           </div>
 
           <div
+            className="topbar-actions"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 18,
             }}
           >
-            <Bell size={19} color="#758191" />
+            <div className="notification-area">
+              <button
+                className="notification-button"
+                type="button"
+                aria-label={`Notificaciones${equiposMantenimiento ? `, ${equiposMantenimiento} equipos requieren mantenimiento` : ''}`}
+                aria-expanded={notificacionesAbiertas}
+                aria-controls="maintenance-notifications"
+                onClick={() => setNotificacionesAbiertas((abiertas) => !abiertas)}
+              >
+                <Bell size={19} color="#758191" />
+                {equiposMantenimiento > 0 && !loading && (
+                  <span className="notification-badge">
+                    {equiposMantenimiento > 99 ? '99+' : equiposMantenimiento}
+                  </span>
+                )}
+              </button>
+              {notificacionesAbiertas && (
+                <section
+                  className="notification-panel"
+                  id="maintenance-notifications"
+                  aria-label="Alertas de mantenimiento"
+                >
+                  <div className="notification-panel-header">
+                    <strong>Alertas de mantenimiento</strong>
+                    {!loading && <span>{equiposMantenimiento}</span>}
+                  </div>
+                  {loading ? (
+                    <p className="notification-empty">Cargando equipos...</p>
+                  ) : error ? (
+                    <p className="notification-empty notification-error">
+                      No se pudieron cargar las alertas: {error}
+                    </p>
+                  ) : equiposMantenimiento === 0 ? (
+                    <p className="notification-empty">
+                      No hay equipos que requieran mantenimiento.
+                    </p>
+                  ) : (
+                    <ul className="notification-list">
+                      {equipos
+                        .filter((equipo) => equipo.requiresMaintenance)
+                        .map((equipo) => (
+                          <li key={equipo.id}>
+                            <button
+                              className="notification-item"
+                              type="button"
+                              onClick={() => {
+                                setEquipoMantenimiento(equipo)
+                                setDescripcionMantenimiento('')
+                                setErrorMantenimiento('')
+                                setExitoMantenimiento('')
+                                setConfirmarMantenimiento(false)
+                                setNotificacionesAbiertas(false)
+                              }}
+                            >
+                              <Wrench size={16} />
+                              <span>
+                                <strong>{equipo.code}</strong>
+                                <small>
+                                  {equipo.hourMeter.toLocaleString('es-PE')} h ·
+                                  requiere mantenimiento
+                                </small>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                  <button
+                    className="notification-footer"
+                    type="button"
+                    onClick={() => {
+                      setVistaActiva('mantenimientos')
+                      setNotificacionesAbiertas(false)
+                    }}
+                  >
+                    Ver mantenimientos
+                  </button>
+                </section>
+              )}
+            </div>
 
             <div
+              className="topbar-user"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -182,7 +352,7 @@ function App() {
                 <HardHat size={18} />
               </div>
 
-              <span style={{ fontSize: 12, fontWeight: 500 }}>
+              <span className="topbar-user-name" style={{ fontSize: 12, fontWeight: 500 }}>
                 Administrador
               </span>
 
@@ -192,6 +362,7 @@ function App() {
         </header>
 
         <div className="page-content">
+          {vistaActiva === 'dashboard' && <>
           {/* ENCABEZADO */}
           <section className="page-header">
             <div>
@@ -252,12 +423,17 @@ function App() {
               <div className="kpi-label">
                 Mantenimientos realizados
               </div>
-              <div className="kpi-value">—</div>
+              <div className="kpi-value">
+                {cargandoTotalMantenimientos
+                  ? '...'
+                  : totalMantenimientos ?? '—'}
+              </div>
               <div className="kpi-description">
-                Registros históricos
+                {errorTotalMantenimientos || 'Total de intervenciones registradas'}
               </div>
             </article>
           </section>
+          </>}
 
           {exitoMantenimiento && (
             <div className="success-message" role="status" aria-live="polite">
@@ -265,6 +441,13 @@ function App() {
             </div>
           )}
 
+          {vistaActiva === 'equipos' && <>
+          <section className="page-header">
+            <div><h1>Equipos</h1><p>Consulta y administra los equipos registrados.</p></div>
+            <button className="btn btn-primary" type="button" onClick={() => { setEquipoEditando(null); setFormulario({ code: '', typeId: '', hourMeter: '' }); setErrorFormulario(''); setModalAbierto(true) }}>
+              <Plus size={16} /> Registrar equipo
+            </button>
+          </section>
           {/* TABLA DE EQUIPOS */}
           <section className="content-section" id="equipos">
             <div className="section-header">
@@ -443,6 +626,7 @@ function App() {
                                 setDescripcionMantenimiento('')
                                 setErrorMantenimiento('')
                                 setExitoMantenimiento('')
+                                setConfirmarMantenimiento(false)
                               }}
                             >
                               <Wrench size={14} />
@@ -481,6 +665,48 @@ function App() {
               </table>
             </div>
           </section>
+          </>}
+
+          {vistaActiva === 'mantenimientos' && <>
+            <section className="page-header"><div><h1>Mantenimientos</h1><p>Equipos que requieren atención según su horómetro.</p></div></section>
+            {error && <div className="empty-state">Error al cargar los equipos: {error}</div>}
+            {loading ? <div className="empty-state">Cargando equipos...</div> : equiposMantenimiento === 0 ? (
+              <section className="content-section"><div className="empty-state"><Wrench size={28} /><p>No hay equipos que requieran mantenimiento.</p></div></section>
+            ) : (
+              <section className="content-section"><div className="table-container"><table className="data-table">
+                <thead><tr><th>Equipo</th><th>Tipo</th><th>Horómetro actual</th><th>Último mantenimiento</th><th>Acción</th></tr></thead>
+                <tbody>{equipos.filter((equipo) => equipo.requiresMaintenance).map((equipo) => <tr key={equipo.id}>
+                  <td><strong>{equipo.code}</strong></td><td>{equipo.typeName}</td><td>{equipo.hourMeter.toLocaleString('es-PE')} h</td><td>{equipo.lastMaintenanceHourMeter.toLocaleString('es-PE')} h</td>
+                  <td><button className="btn btn-primary" type="button" onClick={() => { setEquipoMantenimiento(equipo); setDescripcionMantenimiento(''); setErrorMantenimiento(''); setExitoMantenimiento(''); setConfirmarMantenimiento(false) }}><Wrench size={14} /> Registrar mantenimiento</button></td>
+                </tr>)}</tbody>
+              </table></div></section>
+            )}
+          </>}
+
+          {vistaActiva === 'historial' && <>
+            <section className="page-header"><div><h1>Historial de mantenimientos</h1><p>Registros reales consultados para cada equipo.</p></div>
+              <select className="form-control history-filter" aria-label="Filtrar historial por equipo" value={filtroHistorial} onChange={(event) => setFiltroHistorial(event.target.value)}>
+                <option value="">Todos los equipos</option>{equipos.map((equipo) => <option key={equipo.id} value={equipo.id}>{equipo.code}</option>)}
+              </select>
+            </section>
+            <section className="content-section"><div className="table-container"><table className="data-table">
+              <thead><tr><th>Fecha</th><th>Equipo</th><th>Horómetro</th><th>Descripción</th></tr></thead>
+              <tbody>{loading || cargandoHistorialGeneral ? <tr><td colSpan={4}><div className="empty-state">Consultando historial...</div></td></tr> : errorHistorialGeneral ? <tr><td colSpan={4}><div className="empty-state">No se pudo cargar el historial: {errorHistorialGeneral}</div></td></tr> : mantenimientosFiltrados.length === 0 ? <tr><td colSpan={4}><div className="empty-state"><ClipboardList size={28} /><p>No hay mantenimientos registrados para esta selección.</p></div></td></tr> : mantenimientosFiltrados.map((mantenimiento) => <tr key={mantenimiento.id}>
+                <td>{formatMaintenanceDate(mantenimiento.performedAt)}</td><td><strong>{mantenimiento.equipmentCode}</strong></td><td>{mantenimiento.hourMeter.toLocaleString('es-PE')} h</td><td>{mantenimiento.description}</td>
+              </tr>)}</tbody>
+            </table></div></section>
+          </>}
+
+          {vistaActiva === 'configuracion' && <>
+            <section className="page-header"><div><h1>Configuración</h1><p>Información general de la plataforma.</p></div></section>
+            <section className="content-section"><div className="section-header"><h2>Sistema de gestión minera</h2></div><div className="section-body system-info-grid">
+              <article><span>Aplicación</span><strong>Mining Equipment Management</strong></article>
+              <article><span>Frontend</span><strong>React 19 · TypeScript · Vite</strong></article>
+              <article><span>Backend</span><strong>Java 21 · Spring Boot</strong></article>
+              <article><span>Base de datos</span><strong>PostgreSQL</strong></article>
+              <article><span>Despliegue</span><strong>Vercel · Render · Neon</strong></article>
+            </div></section>
+          </>}
         </div>
 
         {/* MODAL REGISTRAR EQUIPO */}
@@ -702,11 +928,20 @@ function App() {
           <div className="modal-overlay">
             <div className="modal" role="dialog" aria-modal="true" aria-labelledby="maintenance-modal-title">
               <div className="modal-header">
-                <h2 id="maintenance-modal-title">Registrar mantenimiento</h2>
+                <h2 id="maintenance-modal-title">
+                  {confirmarMantenimiento ? 'Confirmar mantenimiento' : 'Registrar mantenimiento'}
+                </h2>
               </div>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault()
+                  if (!confirmarMantenimiento) {
+                    setErrorMantenimiento('')
+                    setConfirmarMantenimiento(true)
+                    return
+                  }
+                  if (registroMantenimientoEnCurso.current) return
+                  registroMantenimientoEnCurso.current = true
                   setGuardandoMantenimiento(true)
                   setErrorMantenimiento('')
                   try {
@@ -728,8 +963,10 @@ function App() {
                     setExitoMantenimiento(
                       `Mantenimiento de ${equipoMantenimiento.code} registrado. Último horómetro: ${mantenimiento.hourMeter.toLocaleString('es-PE')} h.`,
                     )
+                    void actualizarTotalMantenimientos()
                     setEquipoMantenimiento(null)
                     setDescripcionMantenimiento('')
+                    setConfirmarMantenimiento(false)
                   } catch (err) {
                     setErrorMantenimiento(
                       err instanceof Error
@@ -737,32 +974,47 @@ function App() {
                         : 'No se pudo registrar el mantenimiento.',
                     )
                   } finally {
+                    registroMantenimientoEnCurso.current = false
                     setGuardandoMantenimiento(false)
                   }
                 }}
               >
                 <div className="modal-body">
-                  <p>
-                    Equipo: <strong>{equipoMantenimiento.code}</strong>
-                  </p>
-                  <p style={{ marginTop: 8, marginBottom: 18 }}>
-                    Horómetro actual: <strong>{equipoMantenimiento.hourMeter.toLocaleString('es-PE')} h</strong>
-                    <br />
-                    Este valor se guardará automáticamente en el historial.
-                  </p>
-                  <div className="form-group">
-                    <label htmlFor="maintenance-description">Descripción</label>
-                    <textarea
-                      id="maintenance-description"
-                      className="form-control"
-                      rows={4}
-                      maxLength={1000}
-                      placeholder="Describe el mantenimiento realizado..."
-                      value={descripcionMantenimiento}
-                      onChange={(e) => setDescripcionMantenimiento(e.target.value)}
-                      required
-                    />
-                  </div>
+                  {confirmarMantenimiento ? (
+                    <div className="confirmation-summary">
+                      <p>Se registrará este mantenimiento en el historial:</p>
+                      <dl>
+                        <div><dt>Equipo</dt><dd>{equipoMantenimiento.code}</dd></div>
+                        <div><dt>Horómetro que se guardará</dt><dd>{equipoMantenimiento.hourMeter.toLocaleString('es-PE')} h</dd></div>
+                        <div><dt>Descripción</dt><dd>{descripcionMantenimiento.trim()}</dd></div>
+                      </dl>
+                      <p className="confirmation-note">Confirma que los datos sean correctos antes de guardar.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p>
+                        Equipo: <strong>{equipoMantenimiento.code}</strong>
+                      </p>
+                      <p style={{ marginTop: 8, marginBottom: 18 }}>
+                        Horómetro actual: <strong>{equipoMantenimiento.hourMeter.toLocaleString('es-PE')} h</strong>
+                        <br />
+                        Este valor se guardará automáticamente en el historial.
+                      </p>
+                      <div className="form-group">
+                        <label htmlFor="maintenance-description">Descripción</label>
+                        <textarea
+                          id="maintenance-description"
+                          className="form-control"
+                          rows={4}
+                          maxLength={1000}
+                          placeholder="Describe el mantenimiento realizado..."
+                          value={descripcionMantenimiento}
+                          onChange={(e) => setDescripcionMantenimiento(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </>
+                  )}
                   {errorMantenimiento && (
                     <p style={{ color: '#b65c55', marginTop: 16 }}>
                       {errorMantenimiento}
@@ -774,16 +1026,33 @@ function App() {
                     className="btn btn-secondary"
                     type="button"
                     disabled={guardandoMantenimiento}
-                    onClick={() => setEquipoMantenimiento(null)}
+                    onClick={() => {
+                      setEquipoMantenimiento(null)
+                      setConfirmarMantenimiento(false)
+                    }}
                   >
                     Cancelar
                   </button>
+                  {confirmarMantenimiento && (
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      disabled={guardandoMantenimiento}
+                      onClick={() => setConfirmarMantenimiento(false)}
+                    >
+                      Volver a editar
+                    </button>
+                  )}
                   <button
                     className="btn btn-primary"
                     type="submit"
                     disabled={guardandoMantenimiento}
                   >
-                    {guardandoMantenimiento ? 'Guardando...' : 'Registrar mantenimiento'}
+                    {guardandoMantenimiento
+                      ? 'Guardando...'
+                      : confirmarMantenimiento
+                        ? 'Confirmar y registrar'
+                        : 'Revisar registro'}
                   </button>
                 </div>
               </form>

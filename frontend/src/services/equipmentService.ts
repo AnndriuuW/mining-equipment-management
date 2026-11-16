@@ -118,4 +118,6 @@ export const equipmentService = {
     request<Maintenance[]>(
       `/maintenance/equipment/${equipmentId}/history`,
     ),
+
+  getMaintenanceCount: () => request<number>('/maintenance/count'),
 }
