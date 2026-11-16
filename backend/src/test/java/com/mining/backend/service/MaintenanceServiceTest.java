@@ -69,4 +69,16 @@ class MaintenanceServiceTest {
         assertEquals(new BigDecimal("852.00"), equipment.getLastMaintenanceHourMeter());
         assertEquals(Instant.parse("2026-11-14T00:45:29Z"), response.performedAt());
     }
+
+    @Test
+    void returnsTotalNumberOfMaintenanceRecords() {
+        when(maintenanceHistoryRepository.count()).thenReturn(12L);
+        MaintenanceService maintenanceService = new MaintenanceService(
+                equipmentRepository,
+                maintenanceHistoryRepository
+        );
+
+        assertEquals(12L, maintenanceService.countMaintenanceRecords());
+        verify(maintenanceHistoryRepository).count();
+    }
 }

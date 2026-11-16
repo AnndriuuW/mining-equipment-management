@@ -50,6 +50,11 @@ public class MaintenanceController {
         );
     }
 
+    @GetMapping("/count")
+    public ResponseEntity<Long> countMaintenanceRecords() {
+        return ResponseEntity.ok(maintenanceService.countMaintenanceRecords());
+    }
+
     // Datos recibidos desde el frontend
     public record MaintenanceRequest(
             @Size(max = 1000, message = "La descripción no puede superar 1000 caracteres")
